@@ -274,8 +274,8 @@
                     <div class="flex items-center gap-2 text-xs text-slate-600">
                         <span>Jumlah Soal:</span>
                         <select id="gen-count-select" class="rounded-lg border border-slate-300 px-2.5 py-1.5 font-semibold text-slate-800 bg-white">
-                            <option value="30">30 Soal (Komposisi: 50% PG, 30% MCMA, 20% Kategori)</option>
-                            <option value="15">15 Soal Ringkas</option>
+                            <option value="30" selected>30 Soal (15 PG, 9 MCMA/PGK, 6 Kategori)</option>
+                            <option value="15">15 Soal Ringkas (7 PG, 5 MCMA/PGK, 3 Kategori)</option>
                         </select>
                     </div>
                     <div class="flex items-center gap-3">
@@ -296,7 +296,7 @@
                     <i class="fa-solid fa-flask-vial"></i>
                 </div>
                 <h2 class="text-2xl font-extrabold text-slate-900" id="gen-title">Menyusun Soal TKAD IPAS & TKA...</h2>
-                <p class="text-sm text-slate-500 mt-1">Menerapkan komposisi 50% PG, 30% MCMA, dan 20% Kategori...</p>
+                <p class="text-sm text-slate-500 mt-1">Gemini menyusun naskah per kelompok stimulus, lalu sistem memvalidasi jumlah dan kunci jawaban...</p>
                 <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden my-6">
                     <div id="gen-progress-bar" class="bg-brand-600 h-full transition-all duration-300" style="width: 20%"></div>
                 </div>
@@ -611,10 +611,13 @@
             <div class="p-6 overflow-y-auto space-y-5 text-sm text-slate-600">
                 <div class="p-4 rounded-xl border border-brand-200 bg-brand-50/50 space-y-3">
                     <h4 class="font-bold text-slate-900">1. Gemini API Key</h4>
-                    <input type="password" id="input-custom-api-key" placeholder="AIzaSy..." class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-mono">
+                    <input type="password" id="input-custom-api-key" placeholder="AIzaSy..." class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-mono" autocomplete="off">
+                    <p class="text-[11px] leading-relaxed text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">Koneksi AI dijalankan langsung dari browser guru. API Key disimpan di penyimpanan lokal browser ini, bukan ditanam di file HTML. Jangan membagikan browser/profil guru yang sudah menyimpan kunci ini.</p>
                     <select id="input-gemini-model" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold">
-                        <option value="gemini-2.5-flash">gemini-2.5-flash (Rekomendasi Cepat & Stabil)</option>
-                        <option value="gemini-3-flash-preview">gemini-3-flash-preview</option>
+                        <option value="gemini-3.8-flash" selected>gemini-3.8-flash (Rekomendasi — stabil)</option>
+                        <option value="gemini-3.7-flash">gemini-3.7-flash (stabil)</option>
+                        <option value="gemini-2.5-flash">gemini-2.5-flash (kompatibilitas akun lama)</option>
+                        <option value="gemini-3-flash-preview">gemini-3-flash-preview (preview)</option>
                     </select>
                 </div>
                 <div class="p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 space-y-3">
@@ -1428,6 +1431,38 @@ function doPost(e) {
     }
     </script>
 
+    <script>
+    // ============================================================================
+    // AI GENERATION HELPERS
+    // Satu paket terdiri dari 3 soal per stimulus. Paket 30 soal dibuat dalam
+    // lima batch (masing-masing dua stimulus) agar respons Gemini tidak terlalu
+    // panjang dan tidak berhenti setelah tiga soal.
+    // ============================================================================
+    function makeTkaQuestionTypePlan(totalQuestions) {
+        if (totalQuestions === 30) {
+            return [
+                ['PG', 'PGK', 'BS'], ['PG', 'PG', 'PGK'],
+                ['PG', 'PGK', 'BS'], ['PG', 'PG', 'PGK'],
+                ['PG', 'PGK', 'BS'], ['PG', 'PG', 'PGK'],
+                ['PG', 'PGK', 'BS'], ['PG', 'PG', 'PGK'],
+                ['PG', 'PGK', 'BS'], ['PG', 'PG', 'BS']
+            ];
+        }
+        if (totalQuestions === 15) {
+            return [
+                ['PG', 'PGK', 'BS'], ['PG', 'PG', 'PGK'],
+                ['PG', 'PGK', 'BS'], ['PG', 'PG', 'PGK'],
+                ['PG', 'PGK', 'BS']
+            ];
+        }
+        throw new Error('Jumlah soal yang didukung adalah 15 atau 30.');
+    }
+
+    function delayMs(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    </script>
+
     <!-- Main Controller Script -->
     <script>
     const app = {
@@ -1437,13 +1472,14 @@ function doPost(e) {
         teacherEditMode: false,
         showKeySheet: false,
         customApiKey: "",
-        geminiModel: "gemini-2.5-flash",
+        geminiModel: "gemini-3.8-flash",
         gasWebhookUrl: "",
         teacherWhatsApp: "",
         isStudentLockMode: false,
         studentRoster: [],
         examToken: "",
         submissionsLog: [],
+        isGenerating: false,
 
         examState: {
             studentName: "",
@@ -1465,10 +1501,11 @@ function doPost(e) {
         async init() {
             const embCfg = window.__EMBEDDED_CONFIG__ || {};
             this.customApiKey = localStorage.getItem('TKA_HUSNAYAIN_API_KEY') || "";
-            this.geminiModel = localStorage.getItem('TKA_HUSNAYAIN_MODEL') || embCfg.geminiModel || "gemini-2.5-flash";
+            this.geminiModel = localStorage.getItem('TKA_HUSNAYAIN_MODEL') || embCfg.geminiModel || "gemini-3.8-flash";
             this.gasWebhookUrl = localStorage.getItem('TKA_HUSNAYAIN_GAS_URL') || embCfg.gasWebhookUrl || "";
             this.teacherWhatsApp = localStorage.getItem('TKA_HUSNAYAIN_WA') || embCfg.teacherWhatsApp || "";
             this.examToken = localStorage.getItem('TKA_HUSNAYAIN_TOKEN') ?? embCfg.examToken ?? "";
+            this.updateAiStatusIndicators();
 
             try {
                 this.submissionsLog = JSON.parse(localStorage.getItem('TKA_HUSNAYAIN_SUBMISSIONS') || "[]");
@@ -1670,30 +1707,400 @@ function doPost(e) {
         },
 
         analyzeSubjectFromText(text) {
-            const lower = text.toLowerCase();
-            if (lower.includes('ipas') || lower.includes('sains') || lower.includes('ekosistem')) return 'IPAS (Literasi Sains)';
-            if (lower.includes('bilangan') || lower.includes('pecahan') || lower.includes('geometri')) return 'Matematika';
+            const lower = String(text || '').toLowerCase();
+            const ipasTerms = ['ipas', 'literasi sains', 'ekosistem', 'makhluk hidup', 'organ tubuh', 'pernapasan', 'energi', 'gaya', 'zat', 'lingkungan', 'fotosintesis'];
+            const mathTerms = ['matematika', 'numerasi', 'bilangan', 'pecahan', 'geometri', 'pengukuran', 'keliling', 'luas', 'volume', 'kpk', 'fpb', 'perbandingan', 'diagram batang'];
+            const indoTerms = ['bahasa indonesia', 'literasi membaca', 'pemahaman tekstual', 'pemahaman inferensial', 'gagasan utama', 'ide pokok', 'amanat', 'puisi', 'teks fiksi', 'teks nonfiksi'];
+            const score = terms => terms.reduce((n, term) => n + (lower.includes(term) ? 1 : 0), 0);
+            const ipasScore = score(ipasTerms);
+            const mathScore = score(mathTerms);
+            const indoScore = score(indoTerms);
+            if (ipasScore > 0 && ipasScore >= mathScore && ipasScore >= indoScore) return 'IPAS (Literasi Sains)';
+            if (mathScore > 0 && mathScore >= indoScore) return 'Matematika';
             return 'Bahasa Indonesia';
         },
 
-        startGenerationProcess() {
+        updateGenerationLog(message, progress) {
+            const log = document.getElementById('gen-console-log');
+            const bar = document.getElementById('gen-progress-bar');
+            const title = document.getElementById('gen-title');
+            if (log) {
+                const stamp = new Date().toLocaleTimeString('id-ID');
+                log.textContent = `${log.textContent || ''}\n[${stamp}] ${message}`.trim().slice(-9000);
+                log.scrollTop = log.scrollHeight;
+            }
+            if (bar && Number.isFinite(progress)) bar.style.width = `${Math.max(0, Math.min(100, progress))}%`;
+            if (title) title.textContent = message;
+        },
+
+        escapeAiText(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        },
+
+        aiTextToHtml(value) {
+            return String(value == null ? '' : value).trim().split(/\n\s*\n/)
+                .filter(Boolean)
+                .map(paragraph => `<p class="mb-2">${this.escapeAiText(paragraph).replace(/\n/g, '<br>')}</p>`)
+                .join('');
+        },
+
+        extractGeminiJson(text) {
+            let raw = String(text || '').trim();
+            raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+            const first = raw.indexOf('{');
+            const last = raw.lastIndexOf('}');
+            if (first < 0 || last <= first) throw new Error('Respons Gemini tidak berisi objek JSON yang lengkap.');
+            raw = raw.slice(first, last + 1);
+            try { return JSON.parse(raw); }
+            catch (error) { throw new Error('JSON dari Gemini terpotong atau tidak valid: ' + error.message); }
+        },
+
+        async callGeminiJson(prompt, maxOutputTokens = 8192) {
+            if (!this.customApiKey) throw new Error('Gemini API Key belum diisi. Buka Pengaturan AI terlebih dahulu.');
+            const model = (this.geminiModel || 'gemini-3.8-flash').trim();
+            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+            let response;
+            try {
+                response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-goog-api-key': this.customApiKey
+                    },
+                    body: JSON.stringify({
+                        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                        generationConfig: {
+                            temperature: 0.65,
+                            topP: 0.9,
+                            maxOutputTokens,
+                            responseMimeType: 'application/json'
+                        }
+                    })
+                });
+            } catch (error) {
+                throw new Error('Tidak dapat menghubungi Gemini. Periksa koneksi internet atau izin jaringan browser. ' + error.message);
+            }
+
+            let payload = {};
+            try { payload = await response.json(); }
+            catch (error) { throw new Error('Gemini mengirim respons yang tidak dapat dibaca.'); }
+
+            if (!response.ok) {
+                const apiMessage = payload?.error?.message || `HTTP ${response.status}`;
+                throw new Error(`Gemini API (${response.status}): ${apiMessage}`);
+            }
+
+            const candidate = payload?.candidates?.[0];
+            const text = (candidate?.content?.parts || []).map(part => part.text || '').join('').trim();
+            if (!text) {
+                const reason = candidate?.finishReason || payload?.promptFeedback?.blockReason || 'Respons kosong';
+                throw new Error(`Gemini tidak menghasilkan isi soal. Penyebab: ${reason}.`);
+            }
+            if (candidate?.finishReason === 'MAX_TOKENS') {
+                throw new Error('Respons Gemini mencapai batas token sebelum JSON selesai. Batch akan diminta ulang dengan ukuran lebih kecil.');
+            }
+            return this.extractGeminiJson(text);
+        },
+
+        normalizeCorrectIndex(value) {
+            const parseOne = item => {
+                if (typeof item === 'number' && Number.isInteger(item)) return item;
+                const str = String(item == null ? '' : item).trim().toUpperCase();
+                if (/^[A-D]$/.test(str)) return str.charCodeAt(0) - 65;
+                if (/^\d+$/.test(str)) return Number(str);
+                return NaN;
+            };
+            if (Array.isArray(value)) return value.map(parseOne);
+            if (typeof value === 'string' && /[,;]/.test(value)) return value.split(/[,;]/).map(parseOne);
+            return parseOne(value);
+        },
+
+        normalizeAiGroup(rawGroup, groupIndex, requiredTypes) {
+            if (!rawGroup || typeof rawGroup !== 'object') throw new Error(`Stimulus ${groupIndex + 1} tidak berbentuk objek.`);
+            const title = String(rawGroup.title || rawGroup.judul || '').trim();
+            const element = String(rawGroup.element || rawGroup.materi || 'Kompetensi sesuai kisi-kisi').trim();
+            const competency = String(rawGroup.competency || rawGroup.kompetensi || '').trim();
+            const rawText = String(rawGroup.text || rawGroup.stimulus || rawGroup.bacaan || '').trim();
+            if (title.length < 5) throw new Error(`Judul stimulus ${groupIndex + 1} terlalu pendek.`);
+            if (rawText.length < 70) throw new Error(`Stimulus ${groupIndex + 1} belum cukup informatif (minimal 70 karakter).`);
+            if (!Array.isArray(rawGroup.questions) || rawGroup.questions.length !== 3) {
+                throw new Error(`Stimulus ${groupIndex + 1} harus berisi tepat 3 soal.`);
+            }
+
+            const questions = rawGroup.questions.map((rawQ, qIndex) => {
+                const expectedType = requiredTypes[qIndex];
+                const rawType = String(rawQ.type || expectedType).trim().toUpperCase();
+                const typeAliases = {
+                    'MCMA': 'PGK', 'PG KOMPLEKS': 'PGK', 'PILIHAN GANDA KOMPLEKS': 'PGK',
+                    'MULTIPLE SELECT': 'PGK', 'TRUE_FALSE': 'BS', 'BENAR/SALAH': 'BS',
+                    'BENAR SALAH': 'BS', 'KATEGORI': 'BS', 'CLASSIFICATION': 'BS'
+                };
+                const type = typeAliases[rawType] || rawType;
+                if (type !== expectedType) {
+                    throw new Error(`Stimulus ${groupIndex + 1} soal ${qIndex + 1}: tipe harus ${expectedType}, tetapi AI mengirim ${type}.`);
+                }
+                const indicator = String(rawQ.indicator || rawQ.indikator || '').trim();
+                const prompt = String(rawQ.prompt || rawQ.question || rawQ.pertanyaan || '').trim();
+                const explanation = String(rawQ.explanation || rawQ.pembahasan || '').trim();
+                if (indicator.length < 5 || prompt.length < 10 || explanation.length < 12) {
+                    throw new Error(`Stimulus ${groupIndex + 1} soal ${qIndex + 1}: indikator, pertanyaan, atau pembahasan belum lengkap.`);
+                }
+
+                const q = {
+                    type,
+                    indicator: this.escapeAiText(indicator),
+                    prompt: this.escapeAiText(prompt).replace(/\n/g, '<br>'),
+                    explanation: this.escapeAiText(explanation).replace(/\n/g, '<br>')
+                };
+
+                if (type === 'PG' || type === 'PGK') {
+                    const options = Array.isArray(rawQ.options) ? rawQ.options : rawQ.pilihan;
+                    if (!Array.isArray(options) || options.length !== 4) {
+                        throw new Error(`Stimulus ${groupIndex + 1} soal ${qIndex + 1}: ${type} harus memiliki tepat 4 opsi jawaban.`);
+                    }
+                    q.options = options.map(option => this.escapeAiText(String(option).trim()));
+                    if (q.options.some(option => !option)) throw new Error(`Stimulus ${groupIndex + 1} soal ${qIndex + 1}: ada opsi kosong.`);
+                    if (new Set(q.options.map(option => option.toLowerCase())).size !== 4) throw new Error(`Stimulus ${groupIndex + 1} soal ${qIndex + 1}: opsi jawaban tidak boleh duplikat.`);
+                    const correctRaw = rawQ.correct ?? rawQ.correctAnswer ?? rawQ.kunci;
+                    const correct = this.normalizeCorrectIndex(correctRaw);
+                    if (type === 'PG') {
+                        if (!Number.isInteger(correct) || correct < 0 || correct > 3) {
+                            throw new Error(`Stimulus ${groupIndex + 1} soal ${qIndex + 1}: kunci PG harus satu indeks 0-3 atau huruf A-D.`);
+                        }
+                        q.correct = correct;
+                    } else {
+                        const indices = Array.isArray(correct) ? [...new Set(correct)] : [correct];
+                        if (indices.length < 2 || indices.length > 3 || indices.some(index => !Number.isInteger(index) || index < 0 || index > 3)) {
+                            throw new Error(`Stimulus ${groupIndex + 1} soal ${qIndex + 1}: kunci PGK harus berisi 2 atau 3 indeks benar dari 0-3.`);
+                        }
+                        q.correct = indices.sort((a, b) => a - b);
+                    }
+                } else if (type === 'BS') {
+                    const statements = Array.isArray(rawQ.statements) ? rawQ.statements : rawQ.pernyataan;
+                    if (!Array.isArray(statements) || statements.length < 3 || statements.length > 4) {
+                        throw new Error(`Stimulus ${groupIndex + 1} soal ${qIndex + 1}: soal kategori harus memiliki 3-4 pernyataan.`);
+                    }
+                    const correctRaw = rawQ.correct ?? rawQ.correctAnswers ?? rawQ.kunci;
+                    if (!Array.isArray(correctRaw) || correctRaw.length !== statements.length) {
+                        throw new Error(`Stimulus ${groupIndex + 1} soal ${qIndex + 1}: kunci Benar/Salah harus sesuai jumlah pernyataan.`);
+                    }
+                    const bools = correctRaw.map(value => {
+                        if (value === true || String(value).toLowerCase() === 'true' || String(value).toLowerCase() === 'benar') return true;
+                        if (value === false || String(value).toLowerCase() === 'false' || String(value).toLowerCase() === 'salah') return false;
+                        return null;
+                    });
+                    if (bools.some(value => value === null)) throw new Error(`Stimulus ${groupIndex + 1} soal ${qIndex + 1}: kunci kategori harus berupa true/false.`);
+                    if (!bools.includes(true) || !bools.includes(false)) throw new Error(`Stimulus ${groupIndex + 1} soal ${qIndex + 1}: pernyataan kategori harus memuat minimal satu Benar dan satu Salah.`);
+                    q.statements = statements.map(statement => this.escapeAiText(String(statement).trim()));
+                    q.correct = bools;
+                }
+                return q;
+            });
+
+            const dataTableRaw = rawGroup.dataTable || rawGroup.table || null;
+            let dataTable = null;
+            if (dataTableRaw && Array.isArray(dataTableRaw.headers) && Array.isArray(dataTableRaw.rows)) {
+                dataTable = {
+                    headers: dataTableRaw.headers.map(value => this.escapeAiText(String(value))),
+                    rows: dataTableRaw.rows.slice(0, 12).map(row => Array.isArray(row) ? row.slice(0, 8).map(value => this.escapeAiText(String(value))) : [])
+                };
+                dataTable.rows = dataTable.rows.filter(row => row.length > 0);
+            }
+
+            const chartRaw = rawGroup.chart || null;
+            let chart = null;
+            if (chartRaw && Array.isArray(chartRaw.labels) && Array.isArray(chartRaw.values) && chartRaw.labels.length === chartRaw.values.length) {
+                const values = chartRaw.values.map(Number);
+                if (values.every(Number.isFinite) && values.length >= 2 && values.length <= 10) {
+                    chart = {
+                        title: this.escapeAiText(String(chartRaw.title || 'Data pada Stimulus')),
+                        labels: chartRaw.labels.map(value => this.escapeAiText(String(value))),
+                        values,
+                        seriesLabel: this.escapeAiText(String(chartRaw.seriesLabel || 'Jumlah'))
+                    };
+                }
+            }
+
+            return {
+                id: `AI-STIM-${groupIndex + 1}`,
+                title: this.escapeAiText(title),
+                element: this.escapeAiText(element),
+                competency: this.escapeAiText(competency || element),
+                text: this.aiTextToHtml(rawText),
+                svg: '',
+                dataTable,
+                chart,
+                questions
+            };
+        },
+
+        buildAiBatchPrompt(kisiText, subject, groupSpecs, totalQuestions, correctionNote = '') {
+            const typeDescription = {
+                PG: 'Pilihan Ganda: tepat 4 opsi dan tepat 1 kunci benar (correct berupa angka indeks 0-3).',
+                PGK: 'MCMA/Pilihan Ganda Kompleks: tepat 4 opsi dan 2 atau 3 kunci benar (correct berupa array indeks 0-3).',
+                BS: 'Kategori Benar/Salah: 3 atau 4 pernyataan; correct berupa array boolean dengan panjang sama, true berarti Benar dan false berarti Salah.'
+            };
+            const specs = groupSpecs.map(spec => ({
+                nomorStimulus: spec.groupNumber,
+                tipeSoalUrut: spec.types,
+                petunjukTipe: spec.types.map((type, i) => `Soal ${i + 1}: ${type} — ${typeDescription[type]}`).join(' ')
+            }));
+            const subjectStandard = subject.includes('IPAS')
+                ? 'TKAD IPAS / Literasi Sains kelas 6 SD/MI: gunakan fenomena alam, makhluk hidup, sistem tubuh, zat, energi, gaya, lingkungan, eksperimen, data pengamatan, sebab-akibat, dan penerapan konsep sains. Jangan keluar dari kisi-kisi.'
+                : subject === 'Matematika'
+                    ? 'TKA Matematika kelas 6 SD/MI: numerasi kontekstual dan penalaran; data harus konsisten; soal hitungan bertahap; verifikasi ulang setiap operasi dan kunci jawaban.'
+                    : 'TKA Bahasa Indonesia kelas 6 SD/MI: literasi membaca, teks orisinal yang relevan, informasi tersurat/tersirat, inferensi, kosakata, gagasan utama, tujuan, evaluasi, dan apresiasi. Jawaban harus dapat dibuktikan dari stimulus.';
+
+            return `Anda adalah penyusun asesmen TKA/TKAD SD/MI yang sangat teliti. Susun materi untuk MI Husnayain Sleman, kelas 6.\n\n` +
+                `MATA PELAJARAN: ${subject}\nSTANDAR KONTEN: ${subjectStandard}\nJUMLAH PAKET: ${totalQuestions} soal dalam ${Math.ceil(totalQuestions / 3)} kelompok stimulus, 3 soal per stimulus.\n` +
+                `KISI-KISI GURU (WAJIB MENJADI ACUAN UTAMA):\n${kisiText}\n\n` +
+                `TUGAS BATCH INI: Buat TEPAT ${groupSpecs.length} stimulus berikut, dan TEPAT 3 soal untuk masing-masing stimulus. Jangan membuat stimulus/soal tambahan dan jangan mengurangi jumlah.\n` +
+                `URUTAN JENIS SOAL WAJIB:\n${JSON.stringify(specs, null, 2)}\n\n` +
+                `STANDAR MUTU:\n` +
+                `1. Satu stimulus harus benar-benar menjadi sumber informasi untuk ketiga soal dalam kelompok itu. Jangan membuat soal yang bisa dijawab tanpa membaca/menganalisis stimulus.\n` +
+                `2. Stimulus orisinal, kontekstual, cukup informatif (sekitar 80-160 kata bila berupa teks), sesuai usia kelas 6, dan memuat data yang konsisten. Variasikan konteks antarstimulus; jangan mengulang cerita atau angka yang sama.\n` +
+                `3. Soal mengukur pemahaman, penerapan, dan penalaran; hindari hafalan dangkal, pertanyaan ambigu, petunjuk jawaban yang tidak sengaja, dan pengecoh yang terlalu mudah.\n` +
+                `4. Untuk Matematika, hitung ulang seluruh jawaban dan pastikan hanya kunci yang ditandai benar yang tepat. Untuk IPAS, konsep sains harus akurat. Untuk Bahasa Indonesia, kunci wajib didukung stimulus.\n` +
+                `5. Setiap PG/PGK punya tepat 4 opsi. PG tepat 1 kunci. PGK tepat 2-3 kunci. Soal BS punya 3-4 pernyataan; campurkan pernyataan benar dan salah.\n` +
+                `6. Jangan mengubah tipe atau urutan tipe soal yang diminta di atas.\n` +
+                `7. Boleh menyertakan dataTable jika stimulus menggunakan tabel, atau chart jika stimulus menggunakan diagram batang sederhana. Jika tidak perlu, isi null. Semua data harus cukup untuk menjawab soal.\n\n` +
+                `FORMAT KELUARAN: Kembalikan HANYA JSON valid, tanpa markdown/code fence/teks pengantar, dengan bentuk persis:\n` +
+                `{"stimulusGroups":[{"title":"judul","element":"elemen/submateri","competency":"kompetensi","text":"stimulus teks biasa, tanpa HTML","dataTable":null,"chart":null,"questions":[{"type":"PG","indicator":"indikator","prompt":"pertanyaan","options":["A","B","C","D"],"correct":0,"explanation":"pembahasan"},{"type":"PGK","indicator":"indikator","prompt":"pertanyaan","options":["A","B","C","D"],"correct":[0,2],"explanation":"pembahasan"},{"type":"BS","indicator":"indikator","prompt":"instruksi","statements":["pernyataan 1","pernyataan 2","pernyataan 3"],"correct":[true,false,true],"explanation":"pembahasan"}]}]}\n` +
+                `Untuk semua kelompok, sesuaikan urutan type dengan spesifikasi batch, bukan contoh di atas. JSON harus lengkap dan dapat di-parse.\n${correctionNote}`;
+        },
+
+        async generateAiBatch(kisiText, subject, groupSpecs, totalQuestions) {
+            let lastError = null;
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    const correction = attempt === 1 ? '' : `\nPERBAIKAN WAJIB: Percobaan sebelumnya gagal validasi dengan alasan: ${lastError.message}. Buat ulang seluruh batch ini dari awal, patuhi jumlah dan struktur dengan tepat.`;
+                    const prompt = this.buildAiBatchPrompt(kisiText, subject, groupSpecs, totalQuestions, correction);
+                    const result = await this.callGeminiJson(prompt, 8192);
+                    const rawGroups = Array.isArray(result.stimulusGroups) ? result.stimulusGroups : result.groups;
+                    if (!Array.isArray(rawGroups) || rawGroups.length !== groupSpecs.length) {
+                        throw new Error(`Batch harus mengembalikan ${groupSpecs.length} stimulus, tetapi menerima ${Array.isArray(rawGroups) ? rawGroups.length : 0}.`);
+                    }
+                    return rawGroups.map((group, idx) => this.normalizeAiGroup(group, groupSpecs[idx].groupNumber - 1, groupSpecs[idx].types));
+                } catch (error) {
+                    lastError = error;
+                    this.updateGenerationLog(`Batch stimulus ${groupSpecs[0].groupNumber}-${groupSpecs[groupSpecs.length - 1].groupNumber}: percobaan ${attempt}/3 gagal — ${error.message}`, null);
+                    if (attempt < 3) await delayMs(1200 * attempt);
+                }
+            }
+            throw new Error(`Gagal membuat stimulus ${groupSpecs[0].groupNumber}-${groupSpecs[groupSpecs.length - 1].groupNumber} setelah 3 percobaan. ${lastError?.message || ''}`);
+        },
+
+        async generateAiPackage(kisiText, subject, totalQuestions) {
+            const typePlan = makeTkaQuestionTypePlan(totalQuestions);
+            const groups = [];
+            const totalGroups = typePlan.length;
+            const batchSize = 2;
+            this.updateGenerationLog(`AI terhubung. Menyiapkan ${totalQuestions} soal ${subject}...`, 5);
+
+            for (let offset = 0; offset < totalGroups; offset += batchSize) {
+                const groupSpecs = typePlan.slice(offset, offset + batchSize).map((types, idx) => ({
+                    groupNumber: offset + idx + 1,
+                    types
+                }));
+                const batchLabel = groupSpecs.length === 1
+                    ? `Stimulus ${groupSpecs[0].groupNumber}`
+                    : `Stimulus ${groupSpecs[0].groupNumber}-${groupSpecs[groupSpecs.length - 1].groupNumber}`;
+                this.updateGenerationLog(`Gemini sedang menyusun ${batchLabel} beserta ${groupSpecs.length * 3} soal...`, 8 + Math.round((offset / totalGroups) * 78));
+                const generatedGroups = await this.generateAiBatch(kisiText, subject, groupSpecs, totalQuestions);
+                groups.push(...generatedGroups);
+                const completedQuestions = groups.reduce((sum, group) => sum + group.questions.length, 0);
+                this.updateGenerationLog(`${batchLabel} selesai. Terkumpul ${completedQuestions}/${totalQuestions} soal.`, 8 + Math.round((groups.length / totalGroups) * 78));
+                if (offset + batchSize < totalGroups) await delayMs(500);
+            }
+
+            const allQuestions = groups.flatMap(group => group.questions);
+            const counts = allQuestions.reduce((acc, question) => {
+                acc[question.type] = (acc[question.type] || 0) + 1;
+                return acc;
+            }, {});
+            const expectedCounts = totalQuestions === 30
+                ? { PG: 15, PGK: 9, BS: 6 }
+                : { PG: 7, PGK: 5, BS: 3 };
+            if (allQuestions.length !== totalQuestions) {
+                throw new Error(`Validasi akhir gagal: jumlah soal ${allQuestions.length}, seharusnya ${totalQuestions}.`);
+            }
+            if (groups.length !== totalGroups || groups.some(group => group.questions.length !== 3)) {
+                throw new Error('Validasi akhir gagal: setiap paket harus terdiri dari 3 soal untuk setiap stimulus.');
+            }
+            for (const type of ['PG', 'PGK', 'BS']) {
+                if ((counts[type] || 0) !== expectedCounts[type]) {
+                    throw new Error(`Komposisi akhir tidak sesuai: ${type} ${(counts[type] || 0)}, seharusnya ${expectedCounts[type]}.`);
+                }
+            }
+            const normalizedPrompts = allQuestions.map(q => q.prompt.replace(/<[^>]*>/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim());
+            if (new Set(normalizedPrompts).size !== normalizedPrompts.length) {
+                throw new Error('Validasi akhir menemukan pertanyaan duplikat. Silakan generate ulang paket.');
+            }
+
+            const subjectTitle = subject === 'IPAS (Literasi Sains)' ? 'TKAD IPAS (Literasi Sains)' : subject;
+            this.updateGenerationLog(`Validasi selesai: ${allQuestions.length} soal, ${groups.length} stimulus, komposisi tipe tepat.`, 96);
+            return {
+                id: `PKG-AI-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                title: `Naskah Latihan ${subjectTitle} — MI Husnayain Sleman`,
+                subject,
+                grade: 'Kelas 6 MI Husnayain Sleman',
+                createdAt: new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+                durationMinutes: 60,
+                kisiKisi: kisiText,
+                stimulusGroups: groups,
+                generationSource: `Gemini (${this.geminiModel})`,
+                questionCount: allQuestions.length,
+                typeCounts: counts,
+                validatedAt: new Date().toISOString()
+            };
+        },
+
+        async startGenerationProcess() {
+            if (this.isGenerating) return;
             const kisiText = document.getElementById('kisi-input').value.trim();
-            if (!kisiText) { this.showToast("Masukkan kisi-kisi terlebih dahulu.", "warning"); return; }
+            if (!kisiText) { this.showToast('Masukkan kisi-kisi terlebih dahulu.', 'warning'); return; }
+            if (!this.customApiKey) {
+                this.showToast('Gemini API Key belum disetel. Masukkan API Key pada Pengaturan AI.', 'warning');
+                this.openApiModal();
+                return;
+            }
+
             const detected = this.analyzeSubjectFromText(kisiText);
+            const countSelect = document.getElementById('gen-count-select');
+            const totalQuestions = Number(countSelect?.value || 30);
+            if (![15, 30].includes(totalQuestions)) {
+                this.showToast('Pilih jumlah 15 atau 30 soal.', 'warning');
+                return;
+            }
+
+            this.isGenerating = true;
+            const log = document.getElementById('gen-console-log');
+            if (log) log.textContent = '';
             this.navigate('generating');
+            this.updateGenerationLog(`Memulai pembuatan ${totalQuestions} soal ${detected} menggunakan Gemini...`, 2);
 
-            setTimeout(() => {
-                let newPkg;
-                if (detected.includes('IPAS')) newPkg = buildIpasPackage(kisiText, Date.now() % 10);
-                else if (detected.includes('Matematika')) newPkg = buildMathPackage(kisiText, Date.now() % 10);
-                else newPkg = buildIndoPackage(kisiText, Date.now() % 10);
-
+            try {
+                const newPkg = await this.generateAiPackage(kisiText, detected, totalQuestions);
+                const generatedCount = this.getFlatQuestions(newPkg).length;
+                if (generatedCount !== totalQuestions) {
+                    throw new Error(`Paket tidak disimpan karena hanya berisi ${generatedCount} soal dari target ${totalQuestions}.`);
+                }
                 this.packages.unshift(newPkg);
                 this.activePackageId = newPkg.id;
                 this.saveToStorage();
-                this.showToast(`Berhasil membuat naskah ${detected} (50% PG, 30% MCMA, 20% Kategori)!`, "success");
+                this.updateGenerationLog(`Berhasil! ${generatedCount} soal AI tersimpan dan siap ditinjau guru.`, 100);
+                this.showToast(`Berhasil membuat ${generatedCount} soal ${detected} dengan Gemini AI!`, 'success');
                 this.navigate('preview');
-            }, 1200);
+            } catch (error) {
+                console.error('TKA GURU AI generation error:', error);
+                this.updateGenerationLog(`GAGAL: ${error.message}`, 100);
+                this.showToast(`Pembuatan soal gagal: ${error.message}`, 'warning');
+                this.navigate('create');
+            } finally {
+                this.isGenerating = false;
+            }
         },
 
         switchWorkspaceMode(mode) {
@@ -1706,6 +2113,25 @@ function doPost(e) {
             if (type === 'PG') return 'Pilihan Ganda (50%)';
             if (type === 'PGK') return 'Pilihan Ganda Kompleks / MCMA (30%)';
             return 'Kategori / Klasifikasi (20%)';
+        },
+
+        renderStimulusVisual(group) {
+            if (!group) return '';
+            if (group.dataTable && Array.isArray(group.dataTable.headers) && Array.isArray(group.dataTable.rows)) {
+                const headers = group.dataTable.headers.map(value => `<th class="border border-slate-300 px-3 py-2 text-left bg-slate-100">${value}</th>`).join('');
+                const rows = group.dataTable.rows.map(row => `<tr>${row.map(value => `<td class="border border-slate-300 px-3 py-2">${value}</td>`).join('')}</tr>`).join('');
+                return `<div class="mt-3 overflow-x-auto"><table class="w-full border-collapse text-xs sm:text-sm bg-white"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table></div>`;
+            }
+            if (group.chart && Array.isArray(group.chart.labels) && Array.isArray(group.chart.values)) {
+                const maxValue = Math.max(1, ...group.chart.values.map(Number));
+                const bars = group.chart.labels.map((label, index) => {
+                    const value = Number(group.chart.values[index]) || 0;
+                    const width = Math.max(2, Math.round((value / maxValue) * 100));
+                    return `<div class="grid grid-cols-[minmax(72px,1fr)_3fr_42px] gap-2 items-center text-xs mb-2"><span class="text-slate-700">${label}</span><div class="h-4 bg-slate-100 rounded overflow-hidden"><div class="h-full bg-brand-500 rounded" style="width:${width}%"></div></div><strong class="text-right text-slate-800">${value}</strong></div>`;
+                }).join('');
+                return `<div class="mt-3 p-3 rounded-lg border border-slate-300 bg-white"><div class="font-bold text-center text-sm mb-3">${group.chart.title}</div>${bars}<div class="text-[10px] text-slate-500 text-right">${group.chart.seriesLabel || 'Jumlah'}</div></div>`;
+            }
+            return group.svg ? `<div class="mt-3">${group.svg}</div>` : '';
         },
 
         renderPreviewDocument() {
@@ -1736,7 +2162,7 @@ function doPost(e) {
                             </div>
                             <h4 class="font-bold text-base text-slate-900 mb-2">${group.title}</h4>
                             <div class="text-sm text-slate-800 leading-relaxed">${group.text}</div>
-                            ${group.svg ? `<div class="mt-3">${group.svg}</div>` : ''}
+                            ${this.renderStimulusVisual(group)}
                         </div>
                         <div class="space-y-4 pl-2">${questionsHtml}</div>
                     </div>
@@ -1900,7 +2326,7 @@ function doPost(e) {
             document.getElementById('exam-stimulus-content').innerHTML = `
                 <h4 class="font-bold text-slate-900 mb-2">${item.group.title}</h4>
                 <div>${item.group.text}</div>
-                ${item.group.svg ? `<div class="mt-3">${item.group.svg}</div>` : ''}
+                ${this.renderStimulusVisual(item.group)}
             `;
 
             const area = document.getElementById('exam-q-interactive-area');
@@ -2225,14 +2651,64 @@ function doPost(e) {
             const temp = document.createElement('textarea'); temp.value = code; document.body.appendChild(temp); temp.select(); document.execCommand('copy'); temp.remove();
             this.showToast("Kode Apps Script disalin!", "success");
         },
-        openApiModal() { document.getElementById('modal-api').classList.remove('hidden'); },
-        closeApiModal() {
-            this.customApiKey = document.getElementById('input-custom-api-key').value.trim();
-            this.gasWebhookUrl = document.getElementById('input-gas-url').value.trim();
-            document.getElementById('modal-api').classList.add('hidden');
-            this.showToast("Pengaturan disimpan!", "success");
+        openApiModal() {
+            document.getElementById('input-custom-api-key').value = this.customApiKey || '';
+            document.getElementById('input-gemini-model').value = this.geminiModel || 'gemini-3.8-flash';
+            document.getElementById('input-gas-url').value = this.gasWebhookUrl || '';
+            document.getElementById('input-teacher-wa').value = this.teacherWhatsApp || '';
+            document.getElementById('modal-api').classList.remove('hidden');
         },
-        testAiConnection() { this.showToast("Koneksi AI berhasil!", "success"); },
+        saveApiSettings(showMessage = true) {
+            this.customApiKey = document.getElementById('input-custom-api-key').value.trim();
+            this.geminiModel = document.getElementById('input-gemini-model').value || 'gemini-3.8-flash';
+            this.gasWebhookUrl = document.getElementById('input-gas-url').value.trim();
+            this.teacherWhatsApp = document.getElementById('input-teacher-wa').value.trim();
+            try {
+                localStorage.setItem('TKA_HUSNAYAIN_API_KEY', this.customApiKey);
+                localStorage.setItem('TKA_HUSNAYAIN_MODEL', this.geminiModel);
+                localStorage.setItem('TKA_HUSNAYAIN_GAS_URL', this.gasWebhookUrl);
+                localStorage.setItem('TKA_HUSNAYAIN_WA', this.teacherWhatsApp);
+            } catch (error) {
+                this.showToast('Pengaturan tidak dapat disimpan di browser ini. Periksa izin penyimpanan.', 'warning');
+            }
+            this.updateAiStatusIndicators();
+            if (showMessage) this.showToast('Pengaturan AI dan Google Sheet disimpan di browser ini.', 'success');
+        },
+        closeApiModal() {
+            this.saveApiSettings(false);
+            document.getElementById('modal-api').classList.add('hidden');
+            this.showToast('Pengaturan disimpan!', 'success');
+        },
+        updateAiStatusIndicators() {
+            const ready = Boolean(this.customApiKey);
+            const dot = document.getElementById('api-status-dot');
+            if (dot) dot.className = `w-2.5 h-2.5 rounded-full ${ready ? 'bg-emerald-500' : 'bg-amber-500'} absolute -top-1 -right-1 border-2 border-white`;
+            const badge = document.getElementById('hero-ai-badge');
+            if (badge) {
+                badge.className = `inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${ready ? 'bg-emerald-400/20 text-emerald-100 border border-emerald-300/30' : 'bg-amber-400/20 text-amber-200 border border-amber-300/30'}`;
+                badge.innerHTML = ready ? '<i class="fa-solid fa-bolt"></i> Mode AI: Terhubung (Key tersimpan)' : '<i class="fa-solid fa-bolt"></i> Mode AI: Belum dikonfigurasi';
+            }
+        },
+        async testAiConnection() {
+            this.saveApiSettings(false);
+            if (!this.customApiKey) {
+                this.showToast('Masukkan Gemini API Key terlebih dahulu.', 'warning');
+                return;
+            }
+            const button = document.querySelector('#modal-api button[onclick="app.testAiConnection()"]');
+            const originalText = button ? button.textContent : '';
+            if (button) { button.disabled = true; button.textContent = 'Menguji koneksi...'; }
+            try {
+                const result = await this.callGeminiJson('Balas hanya objek JSON valid ini, tanpa teks lain: {"status":"ok","service":"Gemini"}', 256);
+                if (result.status !== 'ok') throw new Error('Respons uji tidak sesuai.');
+                this.updateAiStatusIndicators();
+                this.showToast(`Koneksi Gemini berhasil (${this.geminiModel}).`, 'success');
+            } catch (error) {
+                this.showToast(`Tes AI gagal: ${error.message}`, 'warning');
+            } finally {
+                if (button) { button.disabled = false; button.textContent = originalText || 'Tes Koneksi AI'; }
+            }
+        },
         toggleTeacherEditMode() { this.teacherEditMode = !this.teacherEditMode; this.showToast("Mode Edit Guru " + (this.teacherEditMode ? "Aktif" : "Mati"), "info"); },
         toggleBlueprintModal() { document.getElementById('modal-blueprint').classList.remove('hidden'); },
         closeBlueprintModal() { document.getElementById('modal-blueprint').classList.add('hidden'); },
