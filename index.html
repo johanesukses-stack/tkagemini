@@ -157,7 +157,7 @@
                     <i class="fa-solid fa-wand-magic-sparkles"></i>
                     <span>Buat Naskah AI</span>
                 </button>
-                <button onclick="app.openStudentLinkModal()" class="px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition flex items-center gap-1.5" title="Bagikan Link Khusus Ujian Siswa & Lihat Rekap">
+                <button onclick="app.openStudentLinkModal()" id="btn-nav-student-rekap" class="px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 transition flex items-center gap-1.5" title="Bagikan Link Khusus Ujian Siswa & Lihat Rekap">
                     <i class="fa-solid fa-users-viewfinder text-emerald-600"></i>
                     <span class="hidden lg:inline">Akses Siswa & Rekap</span>
                 </button>
@@ -2691,33 +2691,24 @@ function doGet(e) {
             this.startExamMode();
         },
 
-        updateAiStatusIndicators() {
-            const dot = document.getElementById('api-status-dot');
-            const heroBadge = document.getElementById('hero-ai-badge');
-            const modalBadge = document.getElementById('modal-ai-status-badge');
-
-            const hasAi = !!this.customApiKey;
-            const hasGas = !!this.gasWebhookUrl;
-
-            if (dot) {
-                dot.className = `w-2.5 h-2.5 rounded-full absolute -top-1 -right-1 border-2 border-white ${hasAi ? 'bg-emerald-500' : 'bg-amber-500'}`;
+        openStudentLinkModal() {
+            const select = document.getElementById('share-pkg-select');
+            if (select) {
+                select.innerHTML = this.packages.map(p => `<option value="${p.id}" ${p.id === this.activePackageId ? 'selected' : ''}>${p.subject} — ${p.title}</option>`).join('');
             }
-            if (heroBadge) {
-                if (hasAi && hasGas) {
-                    heroBadge.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-300"></i> Gemini AI Dinamis & Sheet Guru Terhubung`;
-                    heroBadge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-400/20 text-emerald-100 border border-emerald-300/30";
-                } else if (hasAi) {
-                    heroBadge.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles text-emerald-300"></i> Gemini AI Dinamis Aktif (${this.geminiModel})`;
-                    heroBadge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-400/20 text-emerald-100 border border-emerald-300/30";
-                } else {
-                    heroBadge.innerHTML = `<i class="fa-solid fa-bolt"></i> Mode Smart Engine (Klik Hubungkan AI untuk Soal Dinamis Tanpa Batas)`;
-                }
+            this.updateGeneratedStudentLink();
+            this.populateRosterModalInputs();
+            this.renderSubmissionsTable();
+            const modal = document.getElementById('modal-student-link');
+            if (modal) {
+                modal.classList.remove('hidden');
             }
-            if (modalBadge) {
-                modalBadge.textContent = hasAi ? "Gemini API Terhubung" : "Belum Ada API Key";
-                modalBadge.className = hasAi
-                    ? "text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800"
-                    : "text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800";
+        },
+
+        closeStudentLinkModal() {
+            const modal = document.getElementById('modal-student-link');
+            if (modal) {
+                modal.classList.add('hidden');
             }
         },
 
@@ -4867,6 +4858,34 @@ Hasilkan output dalam format JSON murni sesuai skema berikut:
 
         closeGuideModal() {
             document.getElementById('modal-guide').classList.add('hidden');
+        },
+
+        updateAiStatusIndicators() {
+            const dot = document.getElementById('api-status-dot');
+            const badge = document.getElementById('hero-ai-badge');
+            const modalBadge = document.getElementById('modal-ai-status-badge');
+
+            if (this.customApiKey) {
+                if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 absolute -top-1 -right-1 border-2 border-white";
+                if (badge) {
+                    badge.innerHTML = `<i class="fa-solid fa-bolt text-emerald-300"></i> Mode AI: Gemini API Aktif (${this.geminiModel})`;
+                    badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-200 border border-emerald-300/30";
+                }
+                if (modalBadge) {
+                    modalBadge.textContent = "Aktif (Gemini API)";
+                    modalBadge.className = "text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800";
+                }
+            } else {
+                if (dot) dot.className = "w-2.5 h-2.5 rounded-full bg-amber-500 absolute -top-1 -right-1 border-2 border-white";
+                if (badge) {
+                    badge.innerHTML = `<i class="fa-solid fa-bolt"></i> Mode AI: Siap Dikonfigurasi`;
+                    badge.className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-400/20 text-amber-200 border border-amber-300/30";
+                }
+                if (modalBadge) {
+                    modalBadge.textContent = "Mode Hibrida / Parametik";
+                    modalBadge.className = "text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800";
+                }
+            }
         },
 
         copyAppsScriptCode() {
