@@ -652,22 +652,41 @@ function doPost(e) {
     </div>
 
     <div id="modal-student-link" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4 no-print">
-        <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+        <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
             <div class="px-6 py-4 bg-emerald-800 text-white flex items-center justify-between">
-                <h3 class="font-bold text-base flex items-center gap-2"><i class="fa-solid fa-users-gear"></i> Akses Ujian Siswa & Rekap Nilai</h3>
+                <h3 class="font-bold text-base flex items-center gap-2"><i class="fa-solid fa-users-gear"></i> Akses Ujian Siswa, Database & Rekap Nilai</h3>
                 <button onclick="app.closeStudentLinkModal()" class="text-emerald-200 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
             </div>
-            <div class="p-6 overflow-y-auto space-y-4 text-sm">
+            <div class="p-6 overflow-y-auto space-y-6 text-sm">
+                <!-- Share Link Box -->
                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                    <label class="block text-xs font-bold uppercase text-slate-700">Pilih Paket Ujian:</label>
+                    <label class="block text-xs font-bold uppercase text-slate-700">1. Salin Tautan Ujian untuk Siswa:</label>
                     <select id="share-pkg-select" onchange="app.updateGeneratedStudentLink()" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-semibold bg-white"></select>
                     <div class="flex gap-2">
                         <input type="text" id="generated-student-url" readonly class="flex-grow rounded-xl border border-emerald-300 bg-emerald-50/50 px-3.5 py-2 text-xs font-mono">
                         <button onclick="app.copyStudentExamUrl()" class="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs shrink-0"><i class="fa-regular fa-copy mr-1"></i> Salin Link</button>
                     </div>
                 </div>
+
+                <!-- Student Database Input Box -->
+                <div class="bg-emerald-50/60 p-4 rounded-xl border border-emerald-200 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-bold uppercase text-emerald-900">2. Database Peserta Didik (NISN & Password Login):</label>
+                        <button type="button" onclick="app.fillSampleRoster()" class="text-xs font-semibold text-emerald-700 underline hover:text-emerald-900">Muat Contoh Siswa</button>
+                    </div>
+                    <p class="text-xs text-slate-600">Tempelkan daftar siswa dari Excel dengan format per baris: <code class="bg-white px-1.5 py-0.5 rounded border border-emerald-300 font-mono text-[11px]">No Absen, Nama Siswa, Kelas, NISN, Password</code></p>
+                    <textarea id="input-roster-textarea" rows="4" placeholder="1, Ahmad Fauzan, Kelas 6A, 31201234, mihu2026&#10;2, Siti Aminah, Kelas 6A, 31201235, mihu2026" class="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs font-mono focus:ring-2 focus:ring-emerald-500"></textarea>
+                    <div class="flex flex-wrap items-center justify-between gap-3 pt-1">
+                        <button type="button" onclick="app.saveAndSyncRoster()" class="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-sm flex items-center gap-1.5">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Simpan & Sinkron ke Spreadsheet
+                        </button>
+                        <span id="roster-status-info" class="text-xs font-semibold text-emerald-800">Total terdaftar: 0 siswa</span>
+                    </div>
+                </div>
+
+                <!-- Submissions Table -->
                 <div>
-                    <h4 class="font-bold text-slate-900 text-sm mb-2">Daftar Rekap Nilai Siswa</h4>
+                    <h4 class="font-bold text-slate-900 text-sm mb-2">3. Daftar Rekap Nilai Siswa Masuk</h4>
                     <div id="student-submissions-table-wrap" class="border border-slate-200 rounded-xl overflow-hidden"></div>
                 </div>
             </div>
@@ -1455,6 +1474,18 @@ function doPost(e) {
                 this.submissionsLog = JSON.parse(localStorage.getItem('TKA_HUSNAYAIN_SUBMISSIONS') || "[]");
             } catch (e) { this.submissionsLog = []; }
 
+            try {
+                this.studentRoster = JSON.parse(localStorage.getItem('TKA_HUSNAYAIN_ROSTER') || "[]");
+            } catch (e) { this.studentRoster = []; }
+
+            if (this.studentRoster.length === 0) {
+                this.studentRoster = [
+                    { absen: "1", name: "Ahmad Fauzan", kelas: "Kelas 6A", nisn: "31201234", pass: "mihu2026" },
+                    { absen: "2", name: "Siti Aminah", kelas: "Kelas 6A", nisn: "31201235", pass: "mihu2026" }
+                ];
+                localStorage.setItem('TKA_HUSNAYAIN_ROSTER', JSON.stringify(this.studentRoster));
+            }
+
             const saved = localStorage.getItem('TKA_GURU_PACKAGES_V2');
             if (window.__EMBEDDED_PACKAGES__ && Array.isArray(window.__EMBEDDED_PACKAGES__) && window.__EMBEDDED_PACKAGES__.length > 0) {
                 this.packages = window.__EMBEDDED_PACKAGES__;
@@ -1989,13 +2020,203 @@ function doPost(e) {
             const select = document.getElementById('share-pkg-select');
             select.innerHTML = this.packages.map(p => `<option value="${p.id}">${p.subject} — ${p.title}</option>`).join('');
             document.getElementById('generated-student-url').value = `${window.location.href.split('?')[0]}?mode=siswa&pkg=${this.activePackageId}`;
+            
+            // Populate roster textarea
+            const rosterTxt = this.studentRoster.map(s => `${s.absen}, ${s.name}, ${s.kelas}, ${s.nisn}, ${s.pass}`).join('\n');
+            document.getElementById('input-roster-textarea').value = rosterTxt;
+            document.getElementById('roster-status-info').textContent = `Total terdaftar: ${this.studentRoster.length} siswa`;
+
+            // Render submissions table
+            const tableWrap = document.getElementById('student-submissions-table-wrap');
+            if (this.submissionsLog.length === 0) {
+                tableWrap.innerHTML = `<div class="p-4 text-center text-xs text-slate-500 bg-slate-50">Belum ada siswa yang mengumpulkan jawaban.</div>`;
+            } else {
+                tableWrap.innerHTML = `
+                    <table class="w-full text-xs text-left border-collapse bg-white">
+                        <thead class="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                            <tr>
+                                <th class="p-2.5">Waktu</th>
+                                <th class="p-2.5">Nama / Kelas</th>
+                                <th class="p-2.5">NISN</th>
+                                <th class="p-2.5 text-center">Nilai</th>
+                                <th class="p-2.5 text-center">B / S</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            ${this.submissionsLog.map(sub => `
+                                <tr class="hover:bg-slate-50">
+                                    <td class="p-2.5 text-slate-500">${new Date(sub.timestamp).toLocaleTimeString('id-ID')}</td>
+                                    <td class="p-2.5 font-semibold text-slate-900">${sub.studentName} (${sub.studentClass})</td>
+                                    <td class="p-2.5 font-mono text-slate-600">${sub.studentNisn}</td>
+                                    <td class="p-2.5 text-center font-bold text-brand-600 text-sm">${sub.score}</td>
+                                    <td class="p-2.5 text-center text-emerald-700 font-semibold">${sub.correct} / ${sub.wrong}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+
             document.getElementById('modal-student-link').classList.remove('hidden');
         },
         closeStudentLinkModal() { document.getElementById('modal-student-link').classList.add('hidden'); },
-        copyStudentExamUrl() {
-            const inp = document.getElementById('generated-student-url');
-            inp.select(); document.execCommand('copy');
-            this.showToast("Link ujian siswa berhasil disalin!", "success");
+        
+        fillSampleRoster() {
+            document.getElementById('input-roster-textarea').value = `1, Ahmad Fauzan, Kelas 6A, 31201234, mihu2026\n2, Siti Aminah, Kelas 6A, 31201235, mihu2026\n3, Muhammad Rizki, Kelas 6B, 31201236, mihu2026`;
+            this.showToast("Contoh daftar siswa dimuat.", "info");
+        },
+
+        saveAndSyncRoster() {
+            const raw = document.getElementById('input-roster-textarea').value.trim();
+            const lines = raw.split('\n');
+            const newRoster = [];
+
+            lines.forEach(line => {
+                const parts = line.split(',').map(p => p.trim());
+                if (parts.length >= 5) {
+                    newRoster.push({ absen: parts[0], name: parts[1], kelas: parts[2], nisn: parts[3], pass: parts[4] });
+                }
+            });
+
+            if (newRoster.length === 0) {
+                this.showToast("Format roster tidak valid! Pastikan format: No, Nama, Kelas, NISN, Password", "warning");
+                return;
+            }
+
+            this.studentRoster = newRoster;
+            localStorage.setItem('TKA_HUSNAYAIN_ROSTER', JSON.stringify(this.studentRoster));
+            document.getElementById('roster-status-info').textContent = `Total terdaftar: ${this.studentRoster.length} siswa`;
+            this.showToast("Database siswa berhasil disimpan secara lokal!", "success");
+
+            if (this.gasWebhookUrl) {
+                fetch(this.gasWebhookUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'sync_roster', roster: this.studentRoster })
+                }).then(() => {
+                    this.showToast("Roster siswa berhasil disinkronkan ke Google Sheet!", "success");
+                }).catch(() => {
+                    this.showToast("Gagal menyinkronkan ke Google Sheet (Cek URL Webhook).", "warning");
+                });
+            } else {
+                this.showToast("URL Webhook Google Apps Script belum disetel di Pengaturan (ikon gear).", "info");
+            }
+        },
+
+        verifyStudentLoginAndStart() {
+            const nisn = document.getElementById('student-input-nisn').value.trim();
+            const pass = document.getElementById('student-input-password').value.trim();
+            const errEl = document.getElementById('student-login-error');
+
+            if (!nisn || !pass) {
+                errEl.textContent = "NISN dan Password wajib diisi!";
+                errEl.classList.remove('hidden');
+                return;
+            }
+
+            const found = this.studentRoster.find(s => s.nisn === nisn && s.pass === pass);
+            if (!found) {
+                errEl.textContent = "NISN atau Password salah! Periksa kembali data Anda.";
+                errEl.classList.remove('hidden');
+                return;
+            }
+
+            errEl.classList.add('hidden');
+            this.examState.studentNisn = found.nisn;
+            this.examState.studentName = found.name;
+            this.examState.studentClass = found.kelas;
+            this.examState.studentAbsen = found.absen;
+            this.examState.identityVerified = true;
+
+            document.getElementById('student-login-gate').classList.add('hidden');
+            document.getElementById('student-exam-workspace').classList.remove('hidden');
+            this.renderExamQuestion();
+            this.startExamTimer();
+            this.showToast(`Selamat datang, ${found.name} (${found.kelas})!`, "success");
+        },
+        submitExamAndGrade() {
+            if (this.examState.timerInterval) clearInterval(this.examState.timerInterval);
+            const pkg = this.getActivePackage();
+            const flat = this.getFlatQuestions(pkg);
+            let correct = 0, wrong = 0, empty = 0;
+
+            flat.forEach((item, idx) => {
+                const res = this.evaluateSingleQuestion(item.question, this.examState.answers[idx]);
+                if (res.status === 'correct') correct++; else if (res.status === 'wrong') wrong++; else empty++;
+            });
+
+            const score = Math.round((correct / flat.length) * 100);
+            document.getElementById('res-final-score').textContent = score;
+            document.getElementById('res-count-correct').textContent = correct;
+            document.getElementById('res-count-wrong').textContent = wrong;
+            document.getElementById('res-count-empty').textContent = empty;
+            document.getElementById('res-accuracy-pct').textContent = `Akurasi: ${score}%`;
+            document.getElementById('res-predicate-badge').textContent = score >= 75 ? "Predikat: Sangat Baik" : "Predikat: Cukup";
+
+            const submissionData = {
+                timestamp: new Date().toISOString(),
+                studentName: this.examState.studentName || "Siswa",
+                studentClass: this.examState.studentClass || "Kelas 6",
+                studentNisn: this.examState.studentNisn || "-",
+                subject: pkg.subject,
+                score: score,
+                correct: correct,
+                wrong: wrong,
+                empty: empty
+            };
+
+            this.submissionsLog.unshift(submissionData);
+            localStorage.setItem('TKA_HUSNAYAIN_SUBMISSIONS', JSON.stringify(this.submissionsLog));
+
+            const banner = document.getElementById('result-submission-banner');
+            const subText = document.getElementById('result-submission-text');
+            document.getElementById('result-student-badge').textContent = `${this.examState.studentName} (${this.examState.studentClass})`;
+
+            if (this.gasWebhookUrl) {
+                subText.textContent = "Mengirim nilai otomatis ke Google Spreadsheet guru...";
+                fetch(this.gasWebhookUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(submissionData)
+                }).then(() => {
+                    banner.className = "mb-6 rounded-xl p-4 border bg-emerald-50 border-emerald-300 text-emerald-800 text-xs flex items-center justify-between gap-3";
+                    subText.textContent = "Nilai berhasil terkirim ke Google Spreadsheet!";
+                }).catch(() => {
+                    banner.className = "mb-6 rounded-xl p-4 border bg-amber-50 border-amber-300 text-amber-800 text-xs flex items-center justify-between gap-3";
+                    subText.textContent = "Tersimpan lokal (Gagal kirim ke Cloud).";
+                });
+            } else {
+                banner.className = "mb-6 rounded-xl p-4 border bg-blue-50 border-blue-300 text-brand-800 text-xs flex items-center justify-between gap-3";
+                subText.textContent = "Nilai tersimpan di perangkat lokal (Atur webhook Apps Script untuk cloud).";
+            }
+
+            this.navigate('result');
+        },
+
+        retrySubmissionToSheet() {
+            if (!this.gasWebhookUrl) {
+                this.showToast("URL Webhook Google Apps Script belum disetel.", "warning");
+                return;
+            }
+            const latest = this.submissionsLog[0];
+            if (!latest) { this.showToast("Tidak ada data pengiriman.", "info"); return; }
+            this.showToast("Mengirim ulang ke Google Sheet...", "info");
+            fetch(this.gasWebhookUrl, {
+                method: 'POST', mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(latest)
+            }).then(() => this.showToast("Berhasil dikirim ulang!", "success"))
+              .catch(() => this.showToast("Gagal mengirim ulang.", "warning"));
+        },
+
+        sendResultViaWhatsApp() {
+            const latest = this.submissionsLog[0];
+            const name = this.examState.studentName || latest?.studentName || "Siswa";
+            const score = latest?.score || document.getElementById('res-final-score').textContent;
+            const text = `Assalamualaikum Bapak/Ibu Guru MI Husnayain Sleman,\n\nSaya ${name} (${this.examState.studentClass}), NISN: ${this.examState.studentNisn}, telah menyelesaikan ujian dengan nilai akhir: *${score}/100*.\nTerima kasih.`;
+            window.open(`https://wa.me/${this.teacherWhatsApp || ''}?text=${encodeURIComponent(text)}`, '_blank');
         },
         openGuideModal() { document.getElementById('modal-guide').classList.remove('hidden'); },
         closeGuideModal() { document.getElementById('modal-guide').classList.add('hidden'); },
