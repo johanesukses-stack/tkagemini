@@ -464,7 +464,7 @@
             <div id="student-login-gate" class="max-w-lg mx-auto my-6 bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden hidden">
                 <div class="bg-gradient-to-r from-brand-800 to-emerald-700 p-6 text-white text-center">
                     <div class="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-xs flex items-center justify-center text-2xl mx-auto mb-3 border border-white/20">
-                        <i class="fa-solid fa-user-Check"></i>
+                        <i class="fa-solid fa-id-card"></i>
                     </div>
                     <p class="text-xs font-bold uppercase tracking-widest text-emerald-200">PORTAL UJIAN ONLINE MADRASAH</p>
                     <h2 class="text-xl font-extrabold mt-0.5">MI Husnayain Sleman</h2>
@@ -473,22 +473,45 @@
                 <div class="p-6 space-y-4">
                     <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-brand-900 leading-relaxed">
                         <i class="fa-solid fa-circle-info text-brand-600 mr-1"></i>
-                        Silakan isi identitas lengkap sebelum memulai ujian. Jawaban dan nilai Anda akan otomatis terkirim ke Bapak/Ibu Guru setelah selesai.
+                        Silakan masukkan <strong>NISN</strong> dan <strong>Password</strong> yang telah diberikan oleh Guru Anda untuk memulai ujian.
                     </div>
                     <div>
-                        <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Nama Lengkap Siswa <span class="text-rose-500">*</span></label>
+                        <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Nomor Induk Siswa Nasional (NISN) <span class="text-rose-500">*</span></label>
+                        <input type="text" id="student-input-nisn" placeholder="Contoh: 3124567890" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-mono focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Password / PIN Ujian <span class="text-rose-500">*</span></label>
+                        <input type="password" id="student-input-password" placeholder="••••••••" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <!-- Error notice container -->
+                    <div id="student-login-error" class="text-rose-600 text-xs font-semibold hidden bg-rose-50 p-2.5 rounded-lg border border-rose-200"></div>
+
+                    <button type="button" onclick="app.verifyStudentLoginAndStart()" class="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-md transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-right-to-bracket"></i> Masuk & Mulai Ujian
+                    </button>
+                </div>
+            </div>
+
+            <!-- Active Exam Workspace (Shown after identity verified) -->
+                            <label class="block text-xs font-bold uppercase text-slate-700">Nama Lengkap Siswa <span class="text-rose-500">*</span></label>
+                            <button type="button" id="btn-toggle-manual-name" onclick="app.toggleStudentManualInput()" class="text-[11px] font-semibold text-brand-600 hover:underline hidden">
+                                Ketik nama manual
+                            </button>
+                        </div>
+                        <!-- Mode 1: Dropdown Daftar Nama Siswa (Jika Guru sudah mengisi daftar siswa) -->
+                        <select id="student-select-name" onchange="app.onStudentRosterSelect()" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm bg-white focus:ring-2 focus:ring-brand-500 hidden">
+                            <option value="">-- Pilih Nama Lengkap Anda --</option>
+                        </select>
+                        <!-- Mode 2: Ketik Manual (Jika Guru tidak mengisi daftar siswa) -->
                         <input type="text" id="student-input-name" placeholder="Contoh: Ahmad Fauzan" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500">
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Kelas / Rombel <span class="text-rose-500">*</span></label>
-                            <input type="text" id="student-input-class" value="Kelas 6A" placeholder="Contoh: 6A / 6B" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold uppercase text-slate-700 mb-1">Nomor Absen <span class="text-rose-500">*</span></label>
-                            <input type="number" id="student-input-absen" placeholder="Contoh: 12" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500">
-                        </div>
+
+                    <!-- Kolom Token Ujian (Hanya muncul jika Guru mengaktifkan Token) -->
+                    <div id="student-token-wrapper" class="hidden">
+                        <label class="block text-xs font-bold uppercase text-amber-800 mb-1"><i class="fa-solid fa-key mr-1"></i> Token / PIN Ujian <span class="text-rose-500">*</span></label>
+                        <input type="text" id="student-input-token" placeholder="Masukkan Token dari Guru..." class="w-full rounded-xl border-2 border-amber-300 bg-amber-50/40 px-3.5 py-2.5 text-sm font-mono font-bold uppercase tracking-widest focus:ring-2 focus:ring-amber-500">
                     </div>
+
                     <button type="button" onclick="app.confirmStartStudentExam()" class="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-md transition flex items-center justify-center gap-2">
                         <i class="fa-solid fa-play"></i> Mulai Kerjakan Ujian Sekarang
                     </button>
@@ -943,6 +966,28 @@ function doPost(e) {
       }
       return ContentService.createTextOutput(JSON.stringify({ status: 'ok' })).setMimeType(ContentService.MimeType.JSON);
     }
+
+    // 3. JIKA GURU MENYIMPAN DAFTAR NAMA SISWA & TOKEN KE CLOUD SHEET
+    if (payload.action === 'save_roster') {
+      var rSheet = ss.getSheetByName('Data_Siswa');
+      if (!rSheet) {
+        rSheet = ss.insertSheet('Data_Siswa');
+      } else {
+        rSheet.clear();
+      }
+      rSheet.appendRow(['No_Absen', 'Nama_Siswa', 'Kelas', 'Token_Ujian']);
+      rSheet.getRange(1, 1, 1, 4).setFontWeight('bold').setBackground('#d1fae5');
+      var list = payload.roster || [];
+      var tokenStr = payload.examToken || '';
+      if (list.length === 0) {
+        rSheet.appendRow(['', '', '', tokenStr]);
+      } else {
+        for (var k = 0; k < list.length; k++) {
+          rSheet.appendRow([list[k].absen, list[k].name, list[k].kelas, k === 0 ? tokenStr : '']);
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({ status: 'ok' })).setMimeType(ContentService.MimeType.JSON);
+    }
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
@@ -953,64 +998,58 @@ function doGet(e) {
   var action = e.parameter.action;
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  // Ambil Paket Soal berdasarkan ID untuk Siswa
+  // Ambil Paket Soal (+ Daftar Siswa) berdasarkan ID untuk Siswa
   if (action === 'get_package' && e.parameter.id) {
     var pkgSheet = ss.getSheetByName('Bank_Paket');
+    var pkgJson = null;
     if (pkgSheet) {
       var data = pkgSheet.getDataRange().getValues();
       for (var i = 1; i < data.length; i++) {
         if (data[i][0] === e.parameter.id) {
-          return ContentService.createTextOutput(data[i][4]).setMimeType(ContentService.MimeType.JSON);
+          pkgJson = JSON.parse(data[i][4]);
+          break;
         }
       }
+    }
+    var rSheet = ss.getSheetByName('Data_Siswa');
+    var roster = [];
+    var examToken = '';
+    if (rSheet) {
+      var rData = rSheet.getDataRange().getValues();
+      for (var j = 1; j < rData.length; j++) {
+        if (j === 1 && rData[j][3]) examToken = String(rData[j][3]);
+        if (rData[j][1]) {
+          roster.push({ absen: String(rData[j][0]), name: String(rData[j][1]), kelas: String(rData[j][2]) });
+        }
+      }
+    }
+    if (pkgJson) {
+      pkgJson.__cloudRoster = roster;
+      pkgJson.__cloudToken = examToken;
+      return ContentService.createTextOutput(JSON.stringify(pkgJson)).setMimeType(ContentService.MimeType.JSON);
     }
     return ContentService.createTextOutput(JSON.stringify({ error: 'Paket tidak ditemukan' })).setMimeType(ContentService.MimeType.JSON);
   }
 
   // Ambil Daftar Nilai Siswa untuk Dashboard Guru
-  if (action === 'get_scores') {
-    var sheet = ss.getSheetByName('Nilai_Siswa');
-    if (!sheet) return ContentService.createTextOutput('[]').setMimeType(ContentService.MimeType.JSON);
-    var rows = sheet.getDataRange().getValues();
-    rows.shift();
-    return ContentService.createTextOutput(JSON.stringify(rows)).setMimeType(ContentService.MimeType.JSON);
-  }
-
-  return ContentService.createTextOutput(JSON.stringify({ status: 'TKA GURU MI Husnayain Sleman Active' })).setMimeType(ContentService.MimeType.JSON);
-}</pre>
-                </div>
-
-                <!-- Langkah 2: Hosting di GitHub Pages -->
-                <div class="space-y-2">
-                    <h4 class="font-extrabold text-slate-900 text-sm">LANGKAH 2: Cara Upload ke GitHub Pages Agar Bisa Diakses Siswa dari Rumah/Lab</h4>
-                    <ol class="list-decimal pl-5 text-xs space-y-1.5 text-slate-600">
-                        <li>Setelah Anda membuat paket soal AI dan memasukkan URL Web App Google Apps Script di aplikasi ini, klik tombol <strong>"Simpan .HTML"</strong> di pojok kanan atas. File yang terunduh sudah otomatis menyimpan seluruh paket soal & URL Webhook Anda di dalamnya!</li>
-                        <li>Ubah nama file `TKA_GURU.html` menjadi <code>index.html</code>, lalu unggah (*push*) ke repositori <strong>GitHub Pages</strong> Anda (misal: <code>https://username.github.io/tka-husnayain/</code>).</li>
-                        <li>Untuk membagikan ke siswa, klik tombol <strong>"Akses Siswa & Rekap"</strong> pada navbar atas, lalu salin <strong>Tautan Khusus Ujian Siswa</strong> (contoh: <code>https://username.github.io/tka-husnayain/?mode=siswa&pkg=PKG-MATH-...</code>).</li>
-                        <li>Saat siswa membuka tautan tersebut, mereka <strong>hanya bisa melihat halaman ujian</strong> (tanpa tombol kembali ke dashboard guru dan tanpa kunci jawaban).</li>
-                    </ol>
-                </div>
-            </div>
-            <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end">
-                <button onclick="app.closeGuideModal()" class="px-5 py-2 rounded-xl bg-brand-600 text-white font-bold text-xs hover:bg-brand-700">Mengerti & Tutup</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal 6: Link Ujian Siswa & Rekap Jawaban Masuk -->
+    <!-- Modal 6: Link Ujian Siswa, Pengaturan Daftar Siswa & Rekap Jawaban Masuk -->
     <div id="modal-student-link" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4 no-print">
-        <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[88vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
+        <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden">
             <div class="px-6 py-4 bg-emerald-800 text-white flex items-center justify-between">
                 <h3 class="font-bold text-base flex items-center gap-2">
-                    <i class="fa-solid fa-share-nodes"></i> Portal Distribusi Ujian Siswa & Rekap Nilai — MI Husnayain Sleman
+                    <i class="fa-solid fa-users-gear"></i> Portal Akses Ujian Siswa, Daftar Nama Siswa & Rekap Nilai — MI Husnayain Sleman
                 </h3>
                 <button onclick="app.closeStudentLinkModal()" class="text-emerald-200 hover:text-white">
                     <i class="fa-solid fa-xmark text-lg"></i>
                 </button>
             </div>
-            <div class="p-6 overflow-y-auto space-y-5 text-sm">
+            <div class="p-6 overflow-y-auto space-y-6 text-sm">
+                <!-- BAGIAN 1: Pilih Paket & Bagikan Link -->
                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
-                    <label class="block text-xs font-bold uppercase text-slate-700">Pilih Paket Soal yang Akan Diujikan ke Siswa:</label>
+                    <div class="flex items-center justify-between">
+                        <label class="block text-xs font-bold uppercase text-slate-700">1. Pilih Paket Soal yang Akan Diujikan ke Siswa:</label>
+                        <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Otomatis Mengunci Menu Guru</span>
+                    </div>
                     <select id="share-pkg-select" onchange="app.updateGeneratedStudentLink()" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-semibold text-slate-800 bg-white"></select>
                     
                     <div>
@@ -1021,25 +1060,66 @@ function doGet(e) {
                                 <i class="fa-regular fa-copy"></i> Salin Link Siswa
                             </button>
                         </div>
-                        <p class="text-[11px] text-slate-500 mt-1.5">
-                            *Tips: Jika Anda meng-host file ini di GitHub Pages, cukup klik <strong>Simpan .HTML</strong> setelah membuat soal, upload ke GitHub, lalu bagikan link di atas ke grup kelas. Atau klik tombol <strong>"Sync Paket ke Google Sheet"</strong> di bawah jika menggunakan Google Apps Script.
-                        </p>
                     </div>
 
                     <div class="flex flex-wrap gap-2 pt-1">
-                        <button onclick="app.syncPackageToCloud()" class="px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs flex items-center gap-1.5">
-                            <i class="fa-solid fa-cloud-arrow-up"></i> Simpan/Sync Paket Ini ke Google Sheet (Apps Script)
+                        <button onclick="app.syncPackageToCloud()" class="px-3.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs">
+                            <i class="fa-solid fa-cloud-arrow-up"></i> Sync Paket Soal & Daftar Siswa ke Google Sheet
                         </button>
                         <button onclick="app.previewAsStudentMode()" class="px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-1.5">
-                            <i class="fa-solid fa-eye"></i> Simulasikan Tampilan Layar Siswa
+                            <i class="fa-solid fa-eye"></i> Simulasikan Tampilan Login Siswa
                         </button>
                     </div>
                 </div>
 
-                <!-- Rekap Nilai Siswa (Lokal & Cloud Google Sheet) -->
+                <!-- BAGIAN 2: PENGATURAN DAFTAR NAMA SISWA (ROSTER) & TOKEN UJIAN -->
+                <div class="bg-blue-50/50 p-4 rounded-xl border border-blue-200 space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <h4 class="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                                <i class="fa-solid fa-id-card-clip text-brand-600"></i> 2. Pengaturan Daftar Nama Siswa (Dropdown Login) & Token
+                            </h4>
+                            <p class="text-xs text-slate-600">
+                                Jika diisi, siswa tinggal <strong>memilih namanya dari daftar dropdown</strong> (tidak perlu ketik manual & bebas salah ketik). Jika dikosongkan, siswa mengetik namanya secara manual.
+                            </p>
+                        </div>
+                        <div class="flex gap-1.5">
+                            <button type="button" onclick="app.fillSampleStudentRoster()" class="px-2.5 py-1.5 rounded-lg bg-white border border-blue-300 text-brand-700 font-semibold text-xs hover:bg-blue-50">
+                                <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Isi Contoh Siswa Kelas 6
+                            </button>
+                            <button type="button" onclick="app.clearStudentRoster()" class="px-2.5 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-600 font-semibold text-xs hover:bg-rose-50">
+                                Kosongkan (Mode Ketik Bebas)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">
+                                Daftar Siswa (1 baris 1 siswa — Format: <code>No Absen, Nama Lengkap, Kelas</code>)
+                            </label>
+                            <textarea id="roster-textarea-input" rows="5" class="w-full rounded-xl border border-slate-300 bg-white p-3 text-xs font-mono leading-relaxed focus:ring-2 focus:ring-brand-500" placeholder="1, Ahmad Fauzan, Kelas 6A&#10;2, Aisyah Putri Ramadhani, Kelas 6A&#10;3, Bagas Pratama, Kelas 6B&#10;(Bisa langsung Copy-Paste dari Excel / Google Sheet)"></textarea>
+                        </div>
+                        <div class="space-y-3 flex flex-col justify-between">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 mb-1">Token / PIN Ujian (Opsional)</label>
+                                <input type="text" id="roster-token-input" placeholder="Kosongkan jika tanpa token" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono uppercase font-bold">
+                                <p class="text-[11px] text-slate-500 mt-1">Jika diisi (misal: <code>TKA2026</code>), siswa wajib memasukkan token ini saat login ujian.</p>
+                            </div>
+                            <div class="bg-white p-2.5 rounded-xl border border-slate-200 text-xs text-slate-600">
+                                Status saat ini: <strong id="roster-count-badge" class="text-brand-700">0 Siswa Terdaftar (Mode Ketik Manual)</strong>
+                            </div>
+                            <button type="button" onclick="app.saveStudentRosterFromModal()" class="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition flex items-center justify-center gap-1.5">
+                                <i class="fa-solid fa-floppy-disk"></i> Simpan Daftar Siswa & Token
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- BAGIAN 3: Rekap Nilai Siswa (Lokal & Cloud Google Sheet) -->
                 <div>
                     <div class="flex items-center justify-between mb-2">
-                        <h4 class="font-bold text-slate-900 text-sm">Daftar Jawaban & Nilai Siswa yang Masuk</h4>
+                        <h4 class="font-bold text-slate-900 text-sm">3. Daftar Jawaban & Nilai Siswa yang Masuk</h4>
                         <button onclick="app.fetchCloudScores()" class="text-xs font-bold text-brand-600 hover:text-brand-800 flex items-center gap-1">
                             <i class="fa-solid fa-rotate"></i> Muat Data dari Google Sheet
                         </button>
@@ -1090,7 +1170,9 @@ function doGet(e) {
         window.__EMBEDDED_CONFIG__ = {
             gasWebhookUrl: "",
             teacherWhatsApp: "",
-            geminiModel: "gemini-2.5-flash"
+            geminiModel: "gemini-2.5-flash",
+            examToken: "",
+            studentRoster: []
         };
         window.__EMBEDDED_PACKAGES__ = null;
     </script>
@@ -2486,12 +2568,16 @@ function doGet(e) {
         isStudentLockMode: false,
         variantCounter: 1,
         submissionsLog: [],
+        studentRoster: [], // Array of { absen: "1", name: "Ahmad Fauzan", kelas: "Kelas 6A" }
+        examToken: "",
+        forceManualStudentInput: false,
 
         // Exam Interactive State
         examState: {
             studentName: "",
             studentClass: "Kelas 6A",
             studentAbsen: "",
+            studentNisn: "",
             identityVerified: false,
             currentQuestionFlatIndex: 0, // 0..29
             answers: {}, // { qIndex: value }
@@ -2512,6 +2598,18 @@ function doGet(e) {
             this.geminiModel = localStorage.getItem('TKA_HUSNAYAIN_MODEL') || embCfg.geminiModel || "gemini-2.5-flash";
             this.gasWebhookUrl = localStorage.getItem('TKA_HUSNAYAIN_GAS_URL') || embCfg.gasWebhookUrl || "";
             this.teacherWhatsApp = localStorage.getItem('TKA_HUSNAYAIN_WA') || embCfg.teacherWhatsApp || "";
+            this.examToken = localStorage.getItem('TKA_HUSNAYAIN_TOKEN') ?? embCfg.examToken ?? "";
+
+            try {
+                const savedRoster = localStorage.getItem('TKA_HUSNAYAIN_ROSTER');
+                if (savedRoster) {
+                    this.studentRoster = JSON.parse(savedRoster);
+                } else if (Array.isArray(embCfg.studentRoster)) {
+                    this.studentRoster = embCfg.studentRoster;
+                }
+            } catch (e) {
+                this.studentRoster = [];
+            }
 
             try {
                 this.submissionsLog = JSON.parse(localStorage.getItem('TKA_HUSNAYAIN_SUBMISSIONS') || "[]");
@@ -3765,9 +3863,10 @@ Hasilkan output dalam format JSON murni sesuai skema berikut:
             const flat = this.getFlatQuestions(pkg);
             this.workspaceMode = 'ujian';
             this.examState = {
-                studentName: this.examState.studentName || "",
-                studentClass: this.examState.studentClass || "Kelas 6A",
-                studentAbsen: this.examState.studentAbsen || "",
+                studentName: "",
+                studentClass: "",
+                studentAbsen: "",
+                studentNisn: "",
                 identityVerified: false,
                 currentQuestionFlatIndex: 0,
                 answers: {},
@@ -3781,6 +3880,9 @@ Hasilkan output dalam format JSON murni sesuai skema berikut:
             document.getElementById('exam-header-title').textContent = pkg.title;
             document.getElementById('exam-header-sub').textContent = `MI Husnayain Sleman • ${pkg.subject} • ${flat.length} Soal`;
             document.getElementById('gate-exam-title').textContent = `${pkg.title} (${pkg.subject} • ${flat.length} Soal)`;
+            document.getElementById('student-input-nisn').value = "";
+            document.getElementById('student-input-password').value = "";
+            document.getElementById('student-login-error').classList.add('hidden');
 
             this.navigate('exam');
 
@@ -3789,27 +3891,79 @@ Hasilkan output dalam format JSON murni sesuai skema berikut:
             document.getElementById('student-exam-workspace').classList.add('hidden');
         },
 
-        confirmStartStudentExam() {
-            const nameVal = document.getElementById('student-input-name').value.trim();
-            const classVal = document.getElementById('student-input-class').value.trim();
-            const absenVal = document.getElementById('student-input-absen').value.trim();
+        async verifyStudentLoginAndStart() {
+            const nisnVal = document.getElementById('student-input-nisn').value.trim();
+            const passVal = document.getElementById('student-input-password').value.trim();
+            const errEl = document.getElementById('student-login-error');
 
-            if (!nameVal || !classVal || !absenVal) {
-                this.showToast("Mohon lengkapi Nama Lengkap, Kelas, dan Nomor Absen terlebih dahulu!", "warning");
+            if (!nisnVal || !passVal) {
+                errEl.textContent = "NISN dan Password wajib diisi!";
+                errEl.classList.remove('hidden');
                 return;
             }
 
-            this.examState.studentName = nameVal;
-            this.examState.studentClass = classVal;
-            this.examState.studentAbsen = absenVal;
+            errEl.classList.add('hidden');
+            this.showToast("Memverifikasi NISN dan Password...", "info");
+
+            let studentRecord = null;
+
+            // 1. Jika terhubung ke Google Sheet (GAS Webhook), cek ke tab 'Data_Siswa' via doGet
+            if (this.gasWebhookUrl) {
+                try {
+                    const res = await fetch(`${this.gasWebhookUrl}?action=verify_student&nisn=${encodeURIComponent(nisnVal)}&password=${encodeURIComponent(passVal)}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && data.found) {
+                            studentRecord = {
+                                name: data.name,
+                                class: data.class || 'Kelas 6',
+                                absen: data.absen || '-'
+                            };
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Gagal verifikasi online ke Google Sheet:", e);
+                }
+            }
+
+            // 2. Jika tidak ditemukan secara online atau sedang offline, gunakan contoh default demo / data lokal
+            if (!studentRecord) {
+                // Default demo credentials untuk pengujian guru:
+                // NISN: 12345, Password: 123 (Ahmad Fauzan - 6A)
+                // NISN: 67890, Password: 123 (Siti Aminah - 6B)
+                const demoDatabase = {
+                    "12345": { name: "Ahmad Fauzan", class: "Kelas 6A", password: "123", absen: "1" },
+                    "67890": { name: "Siti Aminah", class: "Kelas 6B", password: "123", absen: "2" },
+                    "11223": { name: "Muhammad Zaky", class: "Kelas 6A", password: "123", absen: "15" }
+                };
+
+                const found = demoDatabase[nisnVal];
+                if (found && found.password === passVal) {
+                    studentRecord = { name: found.name, class: found.class, absen: found.absen };
+                }
+            }
+
+            if (!studentRecord) {
+                errEl.textContent = "NISN atau Password tidak valid! Periksa kembali atau tanyakan kepada Guru Anda.";
+                errEl.classList.remove('hidden');
+                this.showToast("Verifikasi login gagal.", "warning");
+                return;
+            }
+
+            // Login Berhasil
+            this.examState.studentNisn = nisnVal;
+            this.examState.studentName = studentRecord.name;
+            this.examState.studentClass = studentRecord.class;
+            this.examState.studentAbsen = studentRecord.absen;
             this.examState.identityVerified = true;
 
             const pkg = this.getActivePackage();
-            document.getElementById('exam-header-sub').textContent = `Peserta: ${nameVal} (${classVal} / No. ${absenVal}) • ${pkg.subject}`;
+            document.getElementById('exam-header-sub').textContent = `Peserta: ${studentRecord.name} (${studentRecord.class} • NISN: ${nisnVal}) • ${pkg.subject}`;
 
             document.getElementById('student-login-gate').classList.add('hidden');
             document.getElementById('student-exam-workspace').classList.remove('hidden');
 
+            this.showToast(`Selamat datang, ${studentRecord.name}! Ujian dimulai.`, "success");
             this.renderExamQuestion();
             this.startExamTimer();
         },
@@ -4248,6 +4402,7 @@ Hasilkan output dalam format JSON murni sesuai skema berikut:
             const submissionPayload = {
                 action: 'submit_exam',
                 timestamp: new Date().toLocaleString('id-ID'),
+                studentNisn: sNisn,
                 studentName: sName,
                 studentClass: sClass,
                 studentAbsen: sAbsen,
@@ -4385,8 +4540,90 @@ Hasilkan output dalam format JSON murni sesuai skema berikut:
             const select = document.getElementById('share-pkg-select');
             select.innerHTML = this.packages.map(p => `<option value="${p.id}" ${p.id === this.activePackageId ? 'selected' : ''}>${p.subject} — ${p.title}</option>`).join('');
             this.updateGeneratedStudentLink();
+            this.populateRosterModalInputs();
             this.renderSubmissionsTable();
             document.getElementById('modal-student-link').classList.remove('hidden');
+        },
+
+        populateRosterModalInputs() {
+            const textarea = document.getElementById('roster-textarea-input');
+            const tokenIn = document.getElementById('roster-token-input');
+            const badge = document.getElementById('roster-count-badge');
+
+            if (textarea) {
+                textarea.value = (this.studentRoster || []).map(s => `${s.absen}, ${s.name}, ${s.kelas}`).join('\n');
+            }
+            if (tokenIn) {
+                tokenIn.value = this.examToken || "";
+            }
+            if (badge) {
+                const count = (this.studentRoster || []).length;
+                badge.textContent = count > 0
+                    ? `${count} Siswa Terdaftar (Mode Dropdown Aktif)`
+                    : `0 Siswa Terdaftar (Mode Ketik Manual)`;
+            }
+        },
+
+        parseRosterText(rawText) {
+            const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+            const list = [];
+            lines.forEach((line, idx) => {
+                // Support comma, semicolon, or tab (direct paste from Excel/Google Sheets)
+                const parts = line.split(/[\t,;]+/).map(p => p.trim()).filter(Boolean);
+                if (parts.length >= 3) {
+                    list.push({ absen: parts[0], name: parts[1], kelas: parts[2] });
+                } else if (parts.length === 2) {
+                    // Could be "1, Ahmad Fauzan" or "Ahmad Fauzan, Kelas 6A"
+                    if (/^\d+$/.test(parts[0])) {
+                        list.push({ absen: parts[0], name: parts[1], kelas: "Kelas 6A" });
+                    } else {
+                        list.push({ absen: String(idx + 1), name: parts[0], kelas: parts[1] });
+                    }
+                } else if (parts.length === 1) {
+                    list.push({ absen: String(idx + 1), name: parts[0], kelas: "Kelas 6A" });
+                }
+            });
+            return list;
+        },
+
+        saveStudentRosterFromModal() {
+            const rawText = document.getElementById('roster-textarea-input').value;
+            const tokenVal = document.getElementById('roster-token-input').value.trim().toUpperCase();
+
+            this.studentRoster = this.parseRosterText(rawText);
+            this.examToken = tokenVal;
+
+            try {
+                localStorage.setItem('TKA_HUSNAYAIN_ROSTER', JSON.stringify(this.studentRoster));
+                localStorage.setItem('TKA_HUSNAYAIN_TOKEN', this.examToken);
+            } catch (e) {}
+
+            this.populateRosterModalInputs();
+            this.showToast(`Berhasil menyimpan ${this.studentRoster.length} daftar nama siswa!`, "success");
+        },
+
+        fillSampleStudentRoster() {
+            const sample = [
+                "1, Ahmad Fauzan, Kelas 6A",
+                "2, Aisyah Putri Ramadhani, Kelas 6A",
+                "3, Muhammad Rizky Pratama, Kelas 6A",
+                "4, Nabila Zahra Khairunnisa, Kelas 6A",
+                "5, Umar Abdurrahman, Kelas 6A",
+                "1, Bilqis Humaira, Kelas 6B",
+                "2, Farel Aditya Nugraha, Kelas 6B",
+                "3, Hafizhan Raffa, Kelas 6B",
+                "4, Khadijah Nur Azizah, Kelas 6B",
+                "5, Zaki Ramadhan, Kelas 6B"
+            ].join('\n');
+            document.getElementById('roster-textarea-input').value = sample;
+            this.saveStudentRosterFromModal();
+        },
+
+        clearStudentRoster() {
+            document.getElementById('roster-textarea-input').value = "";
+            document.getElementById('roster-token-input').value = "";
+            this.saveStudentRosterFromModal();
+            this.showToast("Daftar siswa dikosongkan. Halaman login siswa kini menggunakan Mode Ketik Manual.", "info");
         },
 
         closeStudentLinkModal() {
@@ -4423,19 +4660,30 @@ Hasilkan output dalam format JSON murni sesuai skema berikut:
                 this.showToast("Masukkan URL Web App Google Apps Script terlebih dahulu di menu Konfigurasi (ikon roda gigi)!", "warning");
                 return;
             }
+            // Save any unsaved roster changes first
+            this.saveStudentRosterFromModal();
+
             const pkgId = document.getElementById('share-pkg-select').value;
             const pkg = this.packages.find(p => p.id === pkgId);
             if (!pkg) return;
 
-            this.showToast("Menyimpan paket soal ke Google Sheet (Bank_Paket)...", "info");
+            this.showToast("Menyimpan Paket Soal & Daftar Nama Siswa ke Google Sheet...", "info");
             try {
+                // 1. Sync Package
                 await fetch(this.gasWebhookUrl, {
                     method: 'POST',
                     mode: 'no-cors',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({ action: 'save_package', packageData: pkg })
                 });
-                this.showToast("Paket soal berhasil dikirim ke Google Sheet Cloud! Siswa kini dapat mengaksesnya dari mana saja.", "success");
+                // 2. Sync Student Roster & Exam Token
+                await fetch(this.gasWebhookUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'save_roster', roster: this.studentRoster, examToken: this.examToken })
+                });
+                this.showToast("Paket Soal & Daftar Nama Siswa berhasil disinkronkan ke Google Sheet Cloud!", "success");
             } catch (e) {
                 this.showToast("Gagal sinkronisasi paket ke Cloud: " + e.message, "warning");
             }
@@ -4449,6 +4697,14 @@ Hasilkan output dalam format JSON murni sesuai skema berikut:
                 if (res.ok) {
                     const pkgData = await res.json();
                     if (pkgData && pkgData.id) {
+                        if (Array.isArray(pkgData.__cloudRoster) && pkgData.__cloudRoster.length > 0) {
+                            this.studentRoster = pkgData.__cloudRoster;
+                        }
+                        if (typeof pkgData.__cloudToken === 'string') {
+                            this.examToken = pkgData.__cloudToken;
+                        }
+                        delete pkgData.__cloudRoster;
+                        delete pkgData.__cloudToken;
                         this.packages.unshift(pkgData);
                         this.activePackageId = pkgData.id;
                     }
@@ -4528,13 +4784,15 @@ Hasilkan output dalam format JSON murni sesuai skema berikut:
         },
 
         downloadSelfHtml() {
-            // Embed current packages & Webhook config (WITHOUT exposing secret Gemini API key) so GitHub Pages has the latest packages!
+            // Embed current packages, Student Roster & Webhook config (WITHOUT exposing secret Gemini API key) so GitHub Pages has the latest data!
             const configScript = document.getElementById('embedded-initial-config');
             if (configScript) {
                 const safeConfig = {
                     gasWebhookUrl: this.gasWebhookUrl,
                     teacherWhatsApp: this.teacherWhatsApp,
-                    geminiModel: this.geminiModel
+                    geminiModel: this.geminiModel,
+                    examToken: this.examToken,
+                    studentRoster: this.studentRoster
                 };
                 configScript.textContent = `\nwindow.__EMBEDDED_CONFIG__ = ${JSON.stringify(safeConfig, null, 2)};\nwindow.__EMBEDDED_PACKAGES__ = ${JSON.stringify(this.packages)};\n`;
             }
